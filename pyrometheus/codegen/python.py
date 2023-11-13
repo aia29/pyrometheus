@@ -210,26 +210,9 @@ class Thermochemistry:
         return self.usr_np.ones_like(argument)
 
     def _pyro_make_array(self, res_list):
-        \"""This works around (e.g.) numpy.exp not working with object
-        arrays of numpy scalars. It defaults to making object arrays, however
-        if an array consists of all scalars, it makes a "plain old"
-        :class:`numpy.ndarray`.
-
-        See ``this numpy bug <https://github.com/numpy/numpy/issues/18004>`__
-        for more context.
-        \"""
-
-        from numbers import Number
-        all_numbers = all(isinstance(e, Number) for e in res_list)
-
-        dtype = np.float64 if all_numbers else object
-        result = np.empty((len(res_list),), dtype=dtype)
-
-        # 'result[:] = res_list' may look tempting, however:
-        # https://github.com/numpy/numpy/issues/16564
+        result = self.usr_np.zeros([len(res_list)] + list(res_list[0].shape))
         for idx in range(len(res_list)):
             result[idx] = res_list[idx]
-
         return result
 
     def _pyro_norm(self, argument, normord):
