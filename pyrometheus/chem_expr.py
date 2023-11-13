@@ -243,31 +243,14 @@ def troe_falloff_expr(react: ct.Reaction, t):
     :returns: The Troe falloff center expression for reaction *react* in terms of the
         temperature *t* as a :class:`pymbolic.primitives.Expression`
     """
-    if not react.uses_legacy:
-        if react.rate.type == "Troe":
-            troe_params = react.rate.falloff_coeffs
-        elif react.rate.type == "Lindemann":
-            return 1
-        else:
-            raise ValueError("Unexpected value of 'rate.type': "
-                             f" '{react.rate.type}'")
-    else:
-        from warnings import warn
-        warn("Legacy 'ct.Reaction.falloff' interface is deprecated "
-             "in Cantera 2.6 and will be removed in Cantera 3. "
-             "Access 'FalloffRate' objects using "
-             " ct.Reaction.rate' instead", DeprecationWarning, stacklevel=2)
-        if react.falloff.falloff_type == "Troe":
-            if react.falloff.parameters[3]:
-                troe_params = react.falloff.parameters
-            else:
-                troe_params = react.falloff.parameters[:-1]
 
-        elif react.falloff.falloff_type == "Lindemann":
-            return 1
-        else:
-            raise ValueError("Unexpected value of 'falloff_type': "
-                             f" '{react.falloff.falloff_type}'")
+    if "falloff-Troe" == react.reaction_type:
+        troe_params = react.rate.falloff_coeffs
+    elif "falloff-Lindemann" == react.reaction_type:
+        return 1
+    else:
+        raise ValueError("Unexpected value of 'react.reaction_type': "
+                         f" '{react.reaction_type}'")
 
     troe_1 = (1.0-troe_params[0])*p.Variable("exp")(-t/troe_params[1])
     troe_2 = troe_params[0]*p.Variable("exp")(-t/troe_params[2])
@@ -288,15 +271,14 @@ def falloff_function_expr(react: ct.Reaction, i, t, red_pressure, falloff_center
         of the temperature *t*, reduced pressure *red_pressure*, and falloff center
         *falloff_center* as a :class:`pymbolic.primitives.Expression`
     """
-    if not react.uses_legacy:
-        falloff_type = react.rate.type
+
+    if "falloff-Troe" == react.reaction_type:
+        falloff_type = "Troe"
+    elif "falloff-Lindemann" == react.reaction_type:
+        falloff_type = "Lindemann"
     else:
-        from warnings import warn
-        warn("Legacy 'ct.Reaction.falloff' interface is deprecated "
-             "in Cantera 2.6 and will be removed in Cantera 3. "
-             "Access 'FalloffRate' objects using "
-             " ct.Reaction.rate' instead", DeprecationWarning, stacklevel=2)
-        falloff_type = react.falloff.falloff_type
+        raise ValueError("Unexpected value of 'react.reaction_type': "
+                         f" '{react.reaction_type}'")
 
     if falloff_type == "Troe":
         log_rp = p.Variable("log10")(red_pressure[i])
