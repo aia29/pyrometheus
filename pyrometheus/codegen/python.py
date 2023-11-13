@@ -204,8 +204,10 @@ class Thermochemistry:
         return self.inv_molecular_weights
 
     def _pyro_zeros_like(self, argument):
-        # FIXME: This is imperfect, as a NaN will stay a NaN.
-        return 0 * argument
+        return self.usr_np.zeros_like(argument)
+
+    def _pyro_ones_like(self, argument):
+        return self.usr_np.ones_like(argument)
 
     def _pyro_make_array(self, res_list):
         \"""This works around (e.g.) numpy.exp not working with object
@@ -356,7 +358,7 @@ class Thermochemistry:
 
         num_iter = 500
         tol = 1.0e-6
-        ones = self._pyro_zeros_like(enthalpy_or_energy) + 1.0
+        ones = self._pyro_ones_like(enthalpy_or_energy)
         t_i = t_guess * ones
 
         for _ in range(num_iter):
@@ -371,10 +373,10 @@ class Thermochemistry:
 
     %if falloff_reactions:
     def get_falloff_rates(self, temperature, concentrations, k_fwd):
-        ones = self._pyro_zeros_like(temperature) + 1.0
+        ones = self._pyro_ones_like(temperature)
         k_high = self._pyro_make_array([
         %for _, react in falloff_reactions:
-            %if react.uses_legacy:
+            %if "high_rate" in dir(react):
             ${cgm(ce.rate_coefficient_expr(
                 react.high_rate, Variable("temperature")))},
             %else:
@@ -386,7 +388,7 @@ class Thermochemistry:
 
         k_low = self._pyro_make_array([
         %for _, react in falloff_reactions:
-            %if react.uses_legacy:
+            %if "high_rate" in dir(react):
             ${cgm(ce.rate_coefficient_expr(
                 react.low_rate, Variable("temperature")))},
             %else:
@@ -424,10 +426,10 @@ class Thermochemistry:
 
     %endif
     def get_fwd_rate_coefficients(self, temperature, concentrations):
-        ones = self._pyro_zeros_like(temperature) + 1.0
+        ones = self._pyro_ones_like(temperature)
         k_fwd = [
         %for react in sol.reactions():
-        %if isinstance(react, ct.FalloffReaction):
+        %if "falloff" in react.reaction_type:
             0*temperature,
         %else:
             ${cgm(ce.rate_coefficient_expr(react.rate,
@@ -459,7 +461,7 @@ class Thermochemistry:
     def get_net_production_rates(self, rho, temperature, mass_fractions):
         c = self.get_concentrations(rho, mass_fractions)
         r_net = self.get_net_rates_of_progress(temperature, c)
-        ones = self._pyro_zeros_like(r_net[0]) + 1.0
+        ones = self._pyro_ones_like(r_net[0])
         return self._pyro_make_array([
             %for sp in sol.species():
                 ${cgm(ce.production_rate_expr(
@@ -487,9 +489,9 @@ def gen_thermochem_code(sol: ct.Solution) -> str:
         ce=pyrometheus.chem_expr,
 
         falloff_reactions=[(i, react) for i, react in enumerate(sol.reactions())
-                           if isinstance(react, ct.FalloffReaction)],
+                           if "falloff" in react.reaction_type],
         three_body_reactions=[(i, react) for i, react in enumerate(sol.reactions())
-                             if isinstance(react, ct.ThreeBodyReaction)],
+                             if "three-body" in react.reaction_type],
     )
 
 
